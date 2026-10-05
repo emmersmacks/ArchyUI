@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace CutTwice.Core.RivletUI
+namespace Plugins.ArchyUI.Core
 {
     /// <summary>
     /// Base implementation for window controllers. TView is the runtime view instance, TWindow is the strongly-typed window id.
@@ -13,7 +13,7 @@ namespace CutTwice.Core.RivletUI
 
         protected WindowControllerBase(TView view)
         {
-            View = view ?? throw new ArgumentNullException(nameof(view));
+            View = view ?? throw new ArgumentNullException(GetType().Name);
         }
 
         public virtual void Show(object payload = null)

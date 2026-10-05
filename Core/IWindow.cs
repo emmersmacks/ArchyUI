@@ -1,4 +1,6 @@
-﻿namespace CutTwice.Core.RivletUI
+﻿using System.Collections.Generic;
+
+namespace Plugins.ArchyUI.Core
 {
     /// <summary>
     /// Marker interface for strongly-typed window identifiers.
@@ -7,6 +9,8 @@
     /// </summary>
     public interface IWindow
     {
+        List<IWindowController> Controllers { get; set; }
+        
         void Show(object payload = null);
 
         void Hide();

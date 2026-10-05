@@ -1,6 +1,5 @@
-﻿using System;
-
-namespace CutTwice.Core.RivletUI
+﻿
+namespace Plugins.ArchyUI.Core
 {
     public interface IWindowController
     {

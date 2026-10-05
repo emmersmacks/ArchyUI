@@ -1,4 +1,4 @@
-﻿namespace CutTwice.Core.RivletUI
+﻿namespace Plugins.ArchyUI.Core
 {
     /// <summary>
     /// View abstraction for windows/popups.
