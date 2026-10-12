@@ -116,10 +116,12 @@ namespace Plugins.ArchyUI.Core
             if (idx == topIdx)
                 return; // already at top
 
-            // hide current top only - windows between target and top were never visible in the first place
-            var top = _stack[topIdx];
-            if (_registry.TryGetValue(top, out var topReg))
-                topReg.Hide();
+            // hide all windows above target from top to bottom - they stay visible after Push
+            for (var i = topIdx; i > idx; i--)
+            {
+                if (_registry.TryGetValue(_stack[i], out var aboveReg))
+                    aboveReg.Hide();
+            }
 
             _stack.RemoveRange(idx + 1, topIdx - idx);
 
