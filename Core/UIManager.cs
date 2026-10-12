@@ -37,7 +37,7 @@ namespace Plugins.ArchyUI.Core
             _stack.Remove(key);
         }
 
-        // Push - hide current top and show requested window, push it to stack
+        // Push - show requested window on top of current ones (they stay visible), push it to stack
         public void Push(Type windowType, object payload = null)
         {
             if (!_registry.TryGetValue(windowType, out var reg))
@@ -55,6 +55,28 @@ namespace Plugins.ArchyUI.Core
             if (existingIndex >= 0)
                 _stack.RemoveAt(existingIndex);
 
+            _stack.Add(windowType);
+            reg.Show(payload);
+        }
+
+        // Open - hide all windows in stack and show requested window as the only one in stack
+        public void Open(Type windowType, object payload = null)
+        {
+            if (!_registry.TryGetValue(windowType, out var reg))
+                throw new KeyNotFoundException($"Window {windowType} is not registered");
+
+            // hide from top to bottom; requested window is not hidden to avoid redundant Hide/Show
+            for (var i = _stack.Count - 1; i >= 0; i--)
+            {
+                var type = _stack[i];
+                if (type == windowType)
+                    continue;
+
+                if (_registry.TryGetValue(type, out var stackReg))
+                    stackReg.Hide();
+            }
+
+            _stack.Clear();
             _stack.Add(windowType);
             reg.Show(payload);
         }
