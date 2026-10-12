@@ -11,9 +11,14 @@ namespace Plugins.ArchyUI.Core
     {
         private readonly Dictionary<Type, IWindow> _registry = new();
         private readonly List<Type> _stack = new();
+        private readonly UIManagerSettings _settings;
 
-        public UIManager(List<IWindow> windows)
+        private bool IsOverlay => _settings.StackMode == StackMode.Overlay;
+
+        public UIManager(List<IWindow> windows, UIManagerSettings settings = null)
         {
+            _settings = settings ?? new UIManagerSettings();
+
             foreach (var window in windows)
             {
                 Register(window);
@@ -37,18 +42,22 @@ namespace Plugins.ArchyUI.Core
             _stack.Remove(key);
         }
 
-        // Push - show requested window on top of current ones (they stay visible), push it to stack
+        // Push - show requested window on top and push it to stack.
+        // Overlay: previous windows stay visible. Replace: current top is hidden.
         public void Push(Type windowType, object payload = null)
         {
             if (!_registry.TryGetValue(windowType, out var reg))
                 throw new KeyNotFoundException($"Window {windowType} is not registered");
 
             // if already top - simply show with payload
-            if (_stack.Count > 0 && _stack[_stack.Count - 1] == windowType)
+            if (_stack.Count > 0 && _stack[^1] == windowType)
             {
                 reg.Show(payload);
                 return;
             }
+
+            if (!IsOverlay && _stack.Count > 0)
+                HideWindow(_stack[^1]);
 
             // remove previous occurrence if exists (bring to top)
             var existingIndex = _stack.IndexOf(windowType);
@@ -59,21 +68,19 @@ namespace Plugins.ArchyUI.Core
             reg.Show(payload);
         }
 
-        // Open - hide all windows in stack and show requested window as the only one in stack
+        // Open - hide all visible windows in stack and show requested window as the only one in stack
         public void Open(Type windowType, object payload = null)
         {
             if (!_registry.TryGetValue(windowType, out var reg))
                 throw new KeyNotFoundException($"Window {windowType} is not registered");
 
-            // hide from top to bottom; requested window is not hidden to avoid redundant Hide/Show
-            for (var i = _stack.Count - 1; i >= 0; i--)
+            // Overlay: all windows in stack are visible. Replace: only the top one.
+            // Requested window is not hidden to avoid redundant Hide/Show.
+            var lowestVisible = IsOverlay ? 0 : Math.Max(0, _stack.Count - 1);
+            for (var i = _stack.Count - 1; i >= lowestVisible; i--)
             {
-                var type = _stack[i];
-                if (type == windowType)
-                    continue;
-
-                if (_registry.TryGetValue(type, out var stackReg))
-                    stackReg.Hide();
+                if (_stack[i] != windowType)
+                    HideWindow(_stack[i]);
             }
 
             _stack.Clear();
@@ -81,28 +88,18 @@ namespace Plugins.ArchyUI.Core
             reg.Show(payload);
         }
 
-        // Pop - hide top and show previous if exists
+        // Pop - hide top so previous window becomes top
         public void Pop()
         {
             if (_stack.Count == 0)
                 return;
 
-            var top = _stack[_stack.Count - 1];
-            if (_registry.TryGetValue(top, out var topReg))
-            {
-                topReg.Hide();
-            }
-
+            HideWindow(_stack[^1]);
             _stack.RemoveAt(_stack.Count - 1);
 
-            if (_stack.Count > 0)
-            {
-                var newTop = _stack[^1];
-                if (_registry.TryGetValue(newTop, out var newTopReg))
-                {
-                    newTopReg.Show();
-                }
-            }
+            // Overlay: new top is still visible. Replace: it was hidden by Push, show it again.
+            if (!IsOverlay && _stack.Count > 0)
+                ShowWindow(_stack[^1]);
         }
 
         // PopTo - drop everything above target so it becomes top (inclusive behavior: target remains visible)
@@ -116,17 +113,28 @@ namespace Plugins.ArchyUI.Core
             if (idx == topIdx)
                 return; // already at top
 
-            // hide all windows above target from top to bottom - they stay visible after Push
-            for (var i = topIdx; i > idx; i--)
-            {
-                if (_registry.TryGetValue(_stack[i], out var aboveReg))
-                    aboveReg.Hide();
-            }
+            // Overlay: all windows above target are visible. Replace: only the top one.
+            var lowestVisible = IsOverlay ? idx + 1 : topIdx;
+            for (var i = topIdx; i >= lowestVisible; i--)
+                HideWindow(_stack[i]);
 
             _stack.RemoveRange(idx + 1, topIdx - idx);
 
+            // Overlay: target is still visible. Replace: it was hidden by Push, show it again.
+            if (!IsOverlay)
+                ShowWindow(windowType);
+        }
+
+        private void ShowWindow(Type windowType)
+        {
             if (_registry.TryGetValue(windowType, out var reg))
                 reg.Show();
+        }
+
+        private void HideWindow(Type windowType)
+        {
+            if (_registry.TryGetValue(windowType, out var reg))
+                reg.Hide();
         }
 
         public void Dispose()
